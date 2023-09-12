@@ -55,6 +55,7 @@ class Pgenai {
     injectView() {
         // Create a div element for the popup
         const popup = document.createElement("div");
+        popup.classList.add("popup-view");
         popup.style.width = "300px";
         popup.style.height = "300px";
         popup.style.border = "1px solid #ccc";
@@ -71,8 +72,10 @@ class Pgenai {
         closeButton.style.position = "absolute";
         closeButton.style.top = "5px";
         closeButton.style.right = "5px";
-        closeButton.addEventListener("click", () => {
-            document.body.removeChild(popup);
+        closeButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            document.querySelector('.popup-view').remove();
         });
         popup.appendChild(closeButton);
 
