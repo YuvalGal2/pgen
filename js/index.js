@@ -85,8 +85,24 @@ class Pgenai {
         });
         return containerDiv;
     }
-    injectView() {
-        // Create a div element for the popup
+    createCloseButton(popup) {
+        // Create close button
+        const closeButton = document.createElement("button");
+        closeButton.innerText = "X";
+        closeButton.classList.add('btn-danger');
+        closeButton.classList.add('btn');
+        closeButton.style.position = "absolute";
+        closeButton.style.top = "5px";
+        closeButton.style.right = "5px";
+        closeButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            popup.remove();
+        });
+        return closeButton;
+    }
+
+    createBaseView() {
         const popup = document.createElement("div");
         popup.classList.add("popup-view");
         popup.style.width = "400px";
@@ -98,34 +114,25 @@ class Pgenai {
         popup.style.backgroundColor = "white";
         popup.style.padding = "20px";
         popup.style.zIndex = "9999";
+        return popup;
+    }
+    injectView() {
+        // Create a div element for the popup
+        const popup = this.createBaseView();
 
-        // Create close button
-        const closeButton = document.createElement("button");
-        closeButton.innerText = "X";
-        closeButton.classList.add('btn-danger');
-        closeButton.classList.add('btn');
-
-        closeButton.style.position = "absolute";
-        closeButton.style.top = "5px";
-        closeButton.style.right = "5px";
-        closeButton.addEventListener("click", (event) => {
-            event.stopPropagation();
-            event.preventDefault();
-            popup.remove();
-        });
+        // Create popup close button
+        const closeButton = this.createCloseButton(popup);
         popup.appendChild(closeButton);
 
+        // Create radio input
         const radiosDiv = this.createRadioButtons();
         popup.appendChild(radiosDiv);
-
-        // // Create file input
+        //  Create file input
         const fileDiv = this.createFileBrowserButton();
         popup.appendChild(fileDiv);
         //  Create inputs fields
         this.createInputs(popup);
-        // Function to add a tag when a comma is pressed
 
-        // Create input fields with tags behavior
         const popupSpawnLocation = document.querySelector(this.popupSpawnLocation);
         if (popupSpawnLocation) {
             popupSpawnLocation.appendChild(popup);
@@ -241,18 +248,8 @@ document.onreadystatechange = () => {
     if (document.readyState === "complete") {
         const popupSpawnLocation = '#wp-content-editor-container';
         const pgenai = new Pgenai(popupSpawnLocation);
-        // text insertion option combo ( parent and div)
-        // [
-        //     ['#content_ifr', {class: '.wp-heading-inline', text: 'Edit product'},{action: "editTinyMce"}],
-        //     ['.wp-editor-area',{class: '.wp-heading-inline', text: 'Edit product'},{action: "editTextArea"}],
-        //     ['.wp-editor-area',{class: '.wp-heading-inline', text: 'Add new product'},{action: "editTextArea"}],
-        //     ['#content_ifr',{class: '.wp-heading-inline', text: 'Add new product'}, {action: "editTinyMce"}],
-        //
-        // ]
     }
 }
 
-
-// Load external script
 
 
