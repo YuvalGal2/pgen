@@ -5,53 +5,57 @@
 // By: Yuval Gal
 // License: Open Source
 class Pgenai {
-    containerName;
-    supportedPageObj;
-    editAction;
     popupSpawnLocation;
-
+    formEl;
+    file;
     constructor(popupSpawnLocation) {
         this.popupSpawnLocation = popupSpawnLocation;
         this.injectView();
     }
-
-    checkForContainer() {
-        // const wpHeading = document.querySelector(this.supportedPageObj.class);
-        // if (wpHeading && wpHeading.innerText === this.supportedPageObj.text) {
-        //     return [this.containerName, this.supportedPageObj, this.editAction];
-        // }
-    }
-
-    getTextArea() {
-        // const textarea = document.querySelector(this.containerEl[0]);
-        // const textBoxParent = textarea.parentElement;
-        // return [textBoxParent, textarea];
-    }
-
-    getTinyMce() {
-        // const mce = $(this.containerEl[0]).contents().find("#tinymce");
-        // const iframe = $(this.containerEl[0])[0];
-        // return [iframe, mce];
-    }
-
-
     createFileBrowserButton() {
         const fileDiv = document.createElement("div");
         fileDiv.appendChild(document.createTextNode("Pgen AI - Select Product Image"));
         const fileInput = document.createElement("input");
         fileInput.style.marginTop = "40px";
+        fileInput.name = "file";
         fileInput.style.marginBottom = "20px";
+        fileInput.classList.add('imageInput');
         fileInput.type = "file";
         fileDiv.appendChild(fileInput);
         fileDiv.style.marginTop = "10px";
         fileDiv.style.marginBottom = "10px";
+        fileInput.addEventListener("change", this.fileUploadHandler.bind(this), false);
         return fileDiv;
+    }
+
+
+
+    onSubmitClicked() {
+        fetch('http://127.0.0.2:81/upload', {
+            method: 'POST',
+            body: this.formEl,
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    }
+
+    fileUploadHandler() {
+        const getFileEl = document.querySelector('.imageInput');
+        this.file = getFileEl.files[0];
+       if (this.file) {
+          this.formEl.append('image', this.file);
+       }
     }
     createRadioButtons() {
         // Create an array of radio button labels and values
         const radioOptions = [
-            { label: "Default radio", id: "flexRadioDefault1", checked: false },
-            { label: "Default checked radio", id: "flexRadioDefault2", checked: true },
+            { label: "Sales Type Post", id: "flexRadioDefault1", checked: false, value: 'sales' },
+            { label: "Information Type Post", id: "flexRadioDefault2", checked: false, value: 'info' },
         ];
 
 // Create a container div for the radio buttons
@@ -71,6 +75,7 @@ class Pgenai {
             radioInput.type = "radio";
             radioInput.name = "flexRadioDefault";
             radioInput.id = option.id;
+            radioInput.value = option.value;
             radioInput.checked = option.checked;
 
             const radioLabel = document.createElement("label");
@@ -81,6 +86,14 @@ class Pgenai {
             radioDiv.appendChild(radioInput);
             radioDiv.appendChild(radioLabel);
 
+            radioInput.addEventListener("change", () => {
+                const selectedValue = document.querySelector('.form-check-el input[type="radio"]:checked').value;
+                if (this.formEl.has('genType')) {
+                    this.formEl.delete('genType');
+                    console.log("removed existing value");
+                }
+                this.formEl.append('genType',selectedValue);
+            });
             containerDiv.appendChild(radioDiv);
         });
         return containerDiv;
@@ -114,6 +127,10 @@ class Pgenai {
         popup.style.backgroundColor = "white";
         popup.style.padding = "20px";
         popup.style.zIndex = "9999";
+        const formData = new FormData();
+        this.formEl = formData;
+        console.log("formData Created");
+        console.log(this.formEl);
         return popup;
     }
     injectView() {
@@ -133,12 +150,27 @@ class Pgenai {
         //  Create inputs fields
         this.createInputs(popup);
 
-        const popupSpawnLocation = document.querySelector(this.popupSpawnLocation);
-        if (popupSpawnLocation) {
-            popupSpawnLocation.appendChild(popup);
-        }
+        const submitButton = this.createSubmitButton(popup);
+        popup.appendChild(submitButton);
+        // spawn popup
+        this.spawnPopUp(popup);
+
     }
 
+    createSubmitButton(popup) {
+        // Create submit button
+        const submitButton = document.createElement("button");
+        submitButton.innerText = "Submit";
+        submitButton.classList.add('btn-primary');
+        submitButton.classList.add('btn');
+        submitButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            this.onSubmitClicked();
+          //  popup.remove();
+        });
+        return submitButton;
+    }
     createInputs(popup) {
         const nameDiv = document.createElement("div");
         nameDiv.appendChild(document.createTextNode("Pgen AI - Product Name Options:"));
@@ -220,10 +252,13 @@ class Pgenai {
             }
         });
     }
+    spawnPopUp(popup) {
+        const popupSpawnLocation = document.querySelector(this.popupSpawnLocation);
+        if (popupSpawnLocation) {
+            popupSpawnLocation.appendChild(popup);
+        }
+    }
 }
-
-
-
 // injection system for scripts
 document.onreadystatechange = () => {
     const scriptsLink = [
