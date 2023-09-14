@@ -8,6 +8,11 @@ class Pgenai {
     popupSpawnLocation;
     formEl;
     file;
+    productName;
+    productKeyWords;
+    productBrand;
+    productDescription;
+    productDescriptions;
     constructor(popupSpawnLocation) {
         this.popupSpawnLocation = popupSpawnLocation;
         this.injectView();
@@ -37,13 +42,69 @@ class Pgenai {
         })
             .then(response => response.json())
             .then(data => {
-                console.log(data);
+                this.handleFetchedData(data)
             })
             .catch(error => {
                 console.error('Error:', error);
             });
     }
 
+    handleFetchedData(payload) {
+        if (payload) {
+            console.log(payload);
+            const triggerEventMap = [
+                {
+                    genAt: '.pgen-name',
+                    genValue: payload.msgParams[2] ?? '',
+                    splitBy: ' ',
+                },
+                {
+                    genAt: '.pgen-keywords',
+                    genValue: payload.msgParams[1] ?? '',
+                    splitBy: ' ',
+
+                },
+                {
+                    genAt: '.pgen-description',
+                    genValue: payload.suggestedText?.textVersion ?? ''
+                },
+                {
+                    genAt: '.pgen-brand',
+                    genValue: payload.msgParams[0] ?? '',
+                    splitBy: ' '
+                },
+            ]
+            // Create a new "keydown" event
+            const event = new KeyboardEvent("keydown", {
+                key: "Enter", // Simulate the "Enter" key
+                keyCode: 13,   // Key code for the "Enter" key
+                bubbles: true, // Allow event to bubble up the DOM
+                cancelable: true, // Allow event to be canceled
+            });
+
+
+            triggerEventMap.forEach((obj) => {
+                let data = obj.genValue;
+                if (obj.splitBy) {
+                    data = obj.genValue.split(obj.splitBy);
+                    // if more then one item and not a item which requested to be whole
+                    data.forEach((word) => {
+                        console.log(word);
+                        word = `${word}`;
+                        $(obj.genAt)[0].value += word;
+                        let inputField = document.querySelector(obj.genAt);
+                        inputField.dispatchEvent(event);
+                    })
+                } else {
+                    //  a item which requested to be whole
+                    $(obj.genAt)[0].value += data;
+                    let inputField = document.querySelector(obj.genAt);
+                    inputField.dispatchEvent(event);
+                }
+
+            })
+        }
+    }
     fileUploadHandler() {
         const getFileEl = document.querySelector('.imageInput');
         this.file = getFileEl.files[0];
@@ -58,11 +119,10 @@ class Pgenai {
             { label: "Information Type Post", id: "flexRadioDefault2", checked: false, value: 'info' },
         ];
 
-// Create a container div for the radio buttons
+        // Create a container div for the radio buttons
         const containerDiv = document.createElement("div");
         containerDiv.className = "form-check";
-
-// Loop through the radioOptions array to create radio buttons
+        // Loop through the radioOptions array to create radio buttons
         radioOptions.forEach((option) => {
             const radioDiv = document.createElement("div");
             radioDiv.className = "form-check-el";
@@ -90,7 +150,7 @@ class Pgenai {
                 const selectedValue = document.querySelector('.form-check-el input[type="radio"]:checked').value;
                 if (this.formEl.has('genType')) {
                     this.formEl.delete('genType');
-                    console.log("removed existing value");
+                    // console.log("removed existing value");
                 }
                 this.formEl.append('genType',selectedValue);
             });
@@ -119,7 +179,7 @@ class Pgenai {
         const popup = document.createElement("div");
         popup.classList.add("popup-view");
         popup.style.width = "400px";
-        popup.style.minHeight = "500px";
+        popup.style.minHeight = "700px";
         popup.style.border = "1px solid #ccc";
         popup.style.position = "absolute";
         popup.style.top = "70px";
@@ -129,8 +189,8 @@ class Pgenai {
         popup.style.zIndex = "9999";
         const formData = new FormData();
         this.formEl = formData;
-        console.log("formData Created");
-        console.log(this.formEl);
+        // console.log("formData Created");
+        // console.log(this.formEl);
         return popup;
     }
     injectView() {
@@ -179,26 +239,51 @@ class Pgenai {
         productNameOptions.classList.add("tag-input");
         productNameOptions.style.marginTop = "10px";
         productNameOptions.style.marginBottom = "10px";
+        productNameOptions.classList.add('pgen-name');
         productNameOptions.style.width = "100%";
         productNameOptions.style.border = "none";
         productNameOptions.style.outline = "none";
         nameDiv.appendChild(productNameOptions);
         popup.appendChild(nameDiv);
+        this.productName = productNameOptions;
         this.createTagInput(productNameOptions, nameDiv);
 
+
+        const descriptionDiv = document.createElement("div");
+        descriptionDiv.appendChild(document.createTextNode("Pgen AI - Suggested Product Description:"));
+        descriptionDiv.appendChild(document.createElement('br'));
+        const productDescription = document.createElement("textarea");
+        productDescription.classList.add("tag-input");
+        productDescription.classList.add('pgen-description');
+        productDescription.style.marginTop = "10px";
+        productDescription.style.marginBottom = "10px";
+        productDescription.style.width = "100%";
+        productDescription.style.minHeight = '200px';
+        productDescription.style.border = "none";
+        productDescription.style.outline = "none";
+        descriptionDiv.appendChild(productDescription);
+        popup.appendChild(descriptionDiv);
+        this.productDescription = productDescription;
+
+
+
+
+
         const keywordDiv = document.createElement("div");
+        keywordDiv.style.marginTop = "30px";
         keywordDiv.appendChild(document.createTextNode("Pgen AI - Product Keyword Options:"));
         keywordDiv.appendChild(document.createElement('br'));
         const productKeywordOptions = document.createElement("input");
         productKeywordOptions.classList.add("tag-input");
-
-        productKeywordOptions.style.marginTop = "10px";
+        productKeywordOptions.classList.add('pgen-keywords');
+        productKeywordOptions.style.marginTop = "25px";
         productKeywordOptions.style.marginBottom = "10px";
         productKeywordOptions.style.width = "100%";
         productKeywordOptions.style.border = "none";
         productKeywordOptions.style.outline = "none";
         keywordDiv.appendChild(productKeywordOptions);
         popup.appendChild(keywordDiv);
+        this.productKeyWords = productKeywordOptions;
         this.createTagInput(productKeywordOptions, keywordDiv);
 
         const brandDiv = document.createElement("div");
@@ -206,7 +291,7 @@ class Pgenai {
         brandDiv.appendChild(document.createElement('br'));
         const productBrandOptions = document.createElement("input");
         productBrandOptions.classList.add("tag-input");
-
+        productBrandOptions.classList.add('pgen-brand');
         productBrandOptions.style.marginTop = "10px";
         productBrandOptions.style.marginBottom = "10px";
         productBrandOptions.style.width = "100%";
@@ -214,7 +299,11 @@ class Pgenai {
         productBrandOptions.style.outline = "none";
         brandDiv.appendChild(productBrandOptions);
         popup.appendChild(brandDiv);
+        this.productBrand = productBrandOptions;
         this.createTagInput(productBrandOptions, brandDiv);
+
+
+
 
     }
     createTagInput(inputField, container) {
@@ -263,6 +352,7 @@ class Pgenai {
 document.onreadystatechange = () => {
     const scriptsLink = [
         'https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.min.js',
+        'https://code.jquery.com/jquery-3.7.1.slim.min.js'
     ]
     scriptsLink.forEach((link) => {
         const script = document.createElement("script");
