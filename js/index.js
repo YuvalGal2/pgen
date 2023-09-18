@@ -18,6 +18,7 @@ class Pgenai {
     offsetX = false;
     offsetY = false;
     isDragging = false;
+    improveDataPayload = {};
     constructor(popupSpawnLocation) {
         this.popupSpawnLocation = popupSpawnLocation;
         this.injectView();
@@ -70,8 +71,11 @@ class Pgenai {
     }
 
 
-    onSubmitClicked() {
+    onSubmitClicked(improveResults = false) {
         const uploadLabel = document.querySelector('.pgen-upload-label');
+        if (improveResults) {
+            console.log(this.improveDataPayload);
+        }
         uploadLabel.innerHTML = "Loading...";
         fetch('http://127.0.0.2:81/upload', {
             method: 'POST',
@@ -80,6 +84,7 @@ class Pgenai {
             .then(response => response.json())
             .then(data => {
                 uploadLabel.innerHTML = "Select Product Image";
+                document.querySelector('.improve').style.display = 'unset';
                 this.handleFetchedData(data)
             })
             .catch(error => {
@@ -299,23 +304,31 @@ class Pgenai {
         //  Create inputs fields
         this.createInputs(popup);
 
-        const submitButton = this.createSubmitButton();
+        const submitButton = this.createSubmitButton(false, 'Render');
         popup.appendChild(submitButton);
+        const improveButton = this.createSubmitButton(true, 'Improve');
+        popup.appendChild(improveButton);
         // spawn popup
         this.spawnPopUp(popup);
 
     }
 
-    createSubmitButton() {
+    createSubmitButton(improve = false, nodeText) {
         // Create submit button
         const submitButton = document.createElement("button");
-        submitButton.innerText = "Render";
+        submitButton.innerText = nodeText;
+        if (improve) {
+            submitButton.style.display = 'none';
+            submitButton.classList.add('improve');
+            submitButton.classList.add('btn-success');
+        }
         submitButton.classList.add('btn-primary');
         submitButton.classList.add('btn');
+        submitButton.style.marginLeft = '3px';
         submitButton.addEventListener("click", (event) => {
             event.stopPropagation();
             event.preventDefault();
-            this.onSubmitClicked();
+            this.onSubmitClicked(improve);
             //  popup.remove();
         });
         return submitButton;
@@ -388,10 +401,14 @@ class Pgenai {
                 if (tagValue) {
                     const tagElement = document.createElement("span");
                     tagElement.classList.add('badge');
+                    const ogClass = inputField.className.split(' ')[1];
+                    tagElement.classList.add(`${ogClass}-badge`);
                     tagElement.classList.add('bg-primary');
                     tagElement.innerText = tagValue;
                     tagElement.style.marginTop = '5px';
                     tagElement.style.marginLeft = '5px';
+                    this.improveDataPayload[`${ogClass}-improve`] = [];
+                    this.improveDataPayload[`${ogClass}-improve`].push(tagValue);
 
                     // Add a button to remove the tag
                     const removeButton = document.createElement("span");
@@ -403,6 +420,8 @@ class Pgenai {
                     removeButton.style.marginLeft = "10px";
                     removeButton.classList.add('btn-sm');
                     removeButton.addEventListener("click", () => {
+                        const removeIndex = this.improveDataPayload[`${ogClass}-improve`].indexOf(tagValue);
+                        this.improveDataPayload[`${ogClass}-improve`].splice(removeIndex,1);
                         tagElement.remove();
                     });
 
