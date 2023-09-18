@@ -1,4 +1,6 @@
 'use strict';
+
+let pgenai;
 // Product Gen AI
 // Released at:
 // Version : 1.0.0
@@ -13,35 +15,71 @@ class Pgenai {
     productBrand;
     productDescription;
     productDescriptions;
+    offsetX = false;
+    offsetY = false;
+    isDragging = false;
     constructor(popupSpawnLocation) {
         this.popupSpawnLocation = popupSpawnLocation;
         this.injectView();
     }
-    createFileBrowserButton() {
-        const fileDiv = document.createElement("div");
-        fileDiv.appendChild(document.createTextNode("Pgen AI - Select Product Image"));
-        const fileInput = document.createElement("input");
-        fileInput.style.marginTop = "40px";
-        fileInput.name = "file";
-        fileInput.style.marginBottom = "20px";
-        fileInput.classList.add('imageInput');
-        fileInput.type = "file";
-        fileDiv.appendChild(fileInput);
-        fileDiv.style.marginTop = "10px";
-        fileDiv.style.marginBottom = "10px";
-        fileInput.addEventListener("change", this.fileUploadHandler.bind(this), false);
-        return fileDiv;
+
+
+     createFileBrowserButton() {
+         // Create a container div for the custom file input
+         const fileContainer = document.createElement("div");
+         fileContainer.className = "custom-file-div";
+         fileContainer.style.width = "100%"; // Set a custom width
+         fileContainer.style.height = "80px"; // Set a custom height
+         fileContainer.style.display = 'flex';
+         fileContainer.style.justifyContent = 'center';
+         fileContainer.style.alignItems = 'center';
+         fileContainer.style.backgroundColor = '#333333';
+         fileContainer.style.marginTop = '30px';
+         fileContainer.style.marginBottom = '30px';
+         fileContainer.style.color = '#ffffff';
+         fileContainer.style.border = '1px solid #ffffff';
+
+         // Create a label for the custom file input
+         const fileLabel = document.createElement("label");
+         fileLabel.classList.add('pgen-upload-label');
+         fileLabel.textContent = "Select Product Image";
+         fileLabel.style.cursor = "pointer";
+         fileContainer.appendChild(fileLabel);
+
+         const fileInput = document.createElement('input');
+         fileInput.setAttribute('type','file');
+         fileInput.classList.add('custom-file-input');
+         fileInput.style.display = 'none';
+         fileContainer.addEventListener('dragenter', this.handleDragEnter, false)
+         fileContainer.addEventListener('dragleave',  this.handleDragLeave, false)
+         fileContainer.addEventListener('dragover', this.handleDragOver, false)
+         fileContainer.addEventListener('drop', this.handleFileDrop, false)
+         fileContainer.addEventListener('click', this.handleBrowse.bind(this), false)
+         fileInput.addEventListener("change", () => {
+             const getFileEl = document.querySelector('.custom-file-input');
+             this.file = getFileEl.files[0];
+             if (this.file) {
+                 this.formEl.append('image', this.file);
+                 fileLabel.innerHTML = `Selected ${this.file.name}`;
+                 fileInput.setAttribute('disabled', true);
+                 fileInput.setAttribute('set',this.file.name);
+             }
+         }, false);
+         fileContainer.appendChild(fileInput);
+         return fileContainer;
     }
 
 
-
     onSubmitClicked() {
+        const uploadLabel = document.querySelector('.pgen-upload-label');
+        uploadLabel.innerHTML = "Loading...";
         fetch('http://127.0.0.2:81/upload', {
             method: 'POST',
             body: this.formEl,
         })
             .then(response => response.json())
             .then(data => {
+                uploadLabel.innerHTML = "Select Product Image";
                 this.handleFetchedData(data)
             })
             .catch(error => {
@@ -51,24 +89,27 @@ class Pgenai {
 
     handleFetchedData(payload) {
         if (payload) {
-            console.log(payload);
             const triggerEventMap = [
                 {
+                    container: '.pgen-name-container',
                     genAt: '.pgen-name',
                     genValue: payload.msgParams[2] ?? '',
                     splitBy: ' ',
                 },
                 {
+                    container: '.pgen-keywords-container',
                     genAt: '.pgen-keywords',
                     genValue: payload.msgParams[1] ?? '',
                     splitBy: ' ',
 
                 },
                 {
+                    container: '.pgen-description-container',
                     genAt: '.pgen-description',
                     genValue: payload.suggestedText?.textVersion ?? ''
                 },
                 {
+                    container: '.pgen-brand-container',
                     genAt: '.pgen-brand',
                     genValue: payload.msgParams[0] ?? '',
                     splitBy: ' '
@@ -84,12 +125,13 @@ class Pgenai {
 
 
             triggerEventMap.forEach((obj) => {
+                const container = document.querySelector(obj.container);
+                container.style.display = 'block';
                 let data = obj.genValue;
                 if (obj.splitBy) {
                     data = obj.genValue.split(obj.splitBy);
                     // if more then one item and not a item which requested to be whole
                     data.forEach((word) => {
-                        console.log(word);
                         word = `${word}`;
                         $(obj.genAt)[0].value += word;
                         let inputField = document.querySelector(obj.genAt);
@@ -105,56 +147,79 @@ class Pgenai {
             })
         }
     }
-    fileUploadHandler() {
-        const getFileEl = document.querySelector('.imageInput');
-        this.file = getFileEl.files[0];
-       if (this.file) {
-          this.formEl.append('image', this.file);
-       }
+
+
+    handleBrowse = () => {
+        if (!this.file) {
+            document.querySelector('.custom-file-input').click();
+
+        }
     }
-    createRadioButtons() {
+    handleDragOver = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        event.currentTarget.classList.add("dragover");
+    }
+
+    handleDragEnter = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        event.currentTarget.classList.remove("dragenter");
+    }
+    handleDragLeave = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        event.currentTarget.classList.remove("dragover");
+    }
+
+    handleFileDrop = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const label = document.querySelector('.pgen-upload-label');
+        const inputEl = document.querySelector('.custom-file-input');
+        const files = event.dataTransfer.files;
+        if (inputEl.hasAttribute('set')) {
+            const fileName = inputEl.getAttribute('set');
+            return label.innerHTML = `
+            <p style="color:orangered">Sorry,  But this Pigeon can only carry one file at the time!</p> Selected: <b>${fileName}</b>`;
+        }
+        event.currentTarget.classList.remove("dragover");
+        if (files.length > 0) {
+            // Handle dropped files here
+            this.file = files[0];
+            this.formEl.append('image', this.file);
+            label.innerHTML = `Selected ${files[0].name}`;
+            inputEl.setAttribute('set',files[0].name);
+        }
+    }
+    createPushButtons() {
         // Create an array of radio button labels and values
-        const radioOptions = [
-            { label: "Sales Type Post", id: "flexRadioDefault1", checked: false, value: 'sales' },
-            { label: "Information Type Post", id: "flexRadioDefault2", checked: false, value: 'info' },
+        const buttonOptions = [
+            { label: "Sales Type Post", className: "btn btn-primary btn-sm ", role: "button", value: 'sales' },
+            { label: "Information Type Post", className: "btn btn-secondary btn-sm", role: "button", value: 'info' },
         ];
 
-        // Create a container div for the radio buttons
+        // Create a container div for the buttons
         const containerDiv = document.createElement("div");
-        containerDiv.className = "form-check";
-        // Loop through the radioOptions array to create radio buttons
-        radioOptions.forEach((option) => {
-            const radioDiv = document.createElement("div");
-            radioDiv.className = "form-check-el";
-            radioDiv.style.display = "flex"; // Add display: flex;
-            radioDiv.style.marginTop = "5px";
-            radioDiv.style.alignItems = "center"; // Add align-items: center;
-            radioDiv.style.padding = "0px"; // Add padding: 0px;
-            const radioInput = document.createElement("input");
-            radioInput.className = "form-check-input";
-            radioInput.type = "radio";
-            radioInput.name = "flexRadioDefault";
-            radioInput.id = option.id;
-            radioInput.value = option.value;
-            radioInput.checked = option.checked;
+        containerDiv.style.display = "flex"; // Add display: flex;
+        containerDiv.style.marginTop = "5px";
+        containerDiv.style.alignItems = "center"; // Add align-items: center;
+        containerDiv.style.padding = "0px"; // Add padding: 0px;
 
-            const radioLabel = document.createElement("label");
-            radioLabel.className = "form-check-label";
-            radioLabel.htmlFor = option.id;
-            radioLabel.textContent = option.label;
-
-            radioDiv.appendChild(radioInput);
-            radioDiv.appendChild(radioLabel);
-
-            radioInput.addEventListener("change", () => {
-                const selectedValue = document.querySelector('.form-check-el input[type="radio"]:checked').value;
-                if (this.formEl.has('genType')) {
-                    this.formEl.delete('genType');
-                    // console.log("removed existing value");
-                }
-                this.formEl.append('genType',selectedValue);
+        // Loop through the buttonOptions array to create buttons
+        buttonOptions.forEach((option) => {
+            const buttonElement = document.createElement("a");
+            buttonElement.href = "#";
+            buttonElement.setAttribute('value',option.value);
+            buttonElement.className = option.className;
+            buttonElement.style.marginLeft = '7px';
+            buttonElement.role = option.role;
+            buttonElement.textContent = option.label;
+            buttonElement.addEventListener("click", (event) => {
+                this.formEl.delete('genType');
+                this.formEl.append('genType',event.target.getAttribute('value'))
             });
-            containerDiv.appendChild(radioDiv);
+            containerDiv.appendChild(buttonElement);
         });
         return containerDiv;
     }
@@ -175,22 +240,46 @@ class Pgenai {
         return closeButton;
     }
 
-    createBaseView() {
+    createBaseView(darkMode = true) {
         const popup = document.createElement("div");
+
         popup.classList.add("popup-view");
         popup.style.width = "400px";
-        popup.style.minHeight = "700px";
+        if (darkMode) {
+            popup.style.backgroundColor = '#333333';
+            popup.style.color = '#ffffff';
+        }
+        else {
+            popup.style.backgroundColor = "white";
+        }
+        popup.style.minHeight = "200px";
         popup.style.border = "1px solid #ccc";
-        popup.style.position = "absolute";
-        popup.style.top = "70px";
-        popup.style.left = "70px";
-        popup.style.backgroundColor = "white";
+        popup.style.position = "fixed";
+        popup.style.top = "100px";
+        popup.style.left = "70%";
         popup.style.padding = "20px";
+        popup.setAttribute('draggable','true');
         popup.style.zIndex = "9999";
         const formData = new FormData();
         this.formEl = formData;
         // console.log("formData Created");
         // console.log(this.formEl);
+
+
+        // Event listener for mouse down on the draggable element
+        popup.addEventListener('mousedown', (e) => {
+            if (e.target === popup) {
+                e.preventDefault();
+                this.isDragging = true;
+                // Calculate the offset between the mouse position and the element's position
+                this.offsetX = e.clientX - popup.getBoundingClientRect().left;
+                this.offsetY = e.clientY - popup.getBoundingClientRect().top;
+                // Change cursor style
+                popup.style.cursor = 'grabbing';
+                // Prevent default browser behavior
+            }
+
+        });
         return popup;
     }
     injectView() {
@@ -201,110 +290,95 @@ class Pgenai {
         const closeButton = this.createCloseButton(popup);
         popup.appendChild(closeButton);
 
-        // Create radio input
-        const radiosDiv = this.createRadioButtons();
-        popup.appendChild(radiosDiv);
+        // Create pushDiv input
+        const pushDiv = this.createPushButtons();
+        popup.appendChild(pushDiv);
         //  Create file input
         const fileDiv = this.createFileBrowserButton();
         popup.appendChild(fileDiv);
         //  Create inputs fields
         this.createInputs(popup);
 
-        const submitButton = this.createSubmitButton(popup);
+        const submitButton = this.createSubmitButton();
         popup.appendChild(submitButton);
         // spawn popup
         this.spawnPopUp(popup);
 
     }
 
-    createSubmitButton(popup) {
+    createSubmitButton() {
         // Create submit button
         const submitButton = document.createElement("button");
-        submitButton.innerText = "Submit";
+        submitButton.innerText = "Render";
         submitButton.classList.add('btn-primary');
         submitButton.classList.add('btn');
         submitButton.addEventListener("click", (event) => {
             event.stopPropagation();
             event.preventDefault();
             this.onSubmitClicked();
-          //  popup.remove();
+            //  popup.remove();
         });
         return submitButton;
     }
     createInputs(popup) {
-        const nameDiv = document.createElement("div");
-        nameDiv.appendChild(document.createTextNode("Pgen AI - Product Name Options:"));
-        nameDiv.appendChild(document.createElement('br'));
-        const productNameOptions = document.createElement("input");
-        productNameOptions.classList.add("tag-input");
-        productNameOptions.style.marginTop = "10px";
-        productNameOptions.style.marginBottom = "10px";
-        productNameOptions.classList.add('pgen-name');
-        productNameOptions.style.width = "100%";
-        productNameOptions.style.border = "none";
-        productNameOptions.style.outline = "none";
-        nameDiv.appendChild(productNameOptions);
-        popup.appendChild(nameDiv);
-        this.productName = productNameOptions;
-        this.createTagInput(productNameOptions, nameDiv);
+        const inputs = [
+            {
+                textNode:'Pgen AI - Product Name Options:',
+                containerClass: 'pgen-name-container',
+                inputClass:'tag-input pgen-name',
+                inputType: 'text',
+                inputPlaceHolder: '',
+            },
+            {
+                textNode:'Pgen AI - Suggested Product Description:',
+                containerClass: 'pgen-description-container',
+                inputClass:'pgen-description',
+                inputType: 'textarea',
+                inputPlaceHolder: '',
+                minHeight: '300px',
+                noTags: true
+            },
+            {
+                textNode:'Pgen AI - Product Keyword Options:',
+                containerClass: 'pgen-keywords-container',
+                inputClass:'tag-input pgen-keywords',
+                inputType: 'text',
+                inputPlaceHolder: '',
+            },
+            {
+                textNode:'Pgen AI - Product Brand Options:',
+                containerClass: 'pgen-brand-container',
+                inputClass:'tag-input pgen-brand',
+                inputType: 'text',
+                inputPlaceHolder: '',
+            },
 
-
-        const descriptionDiv = document.createElement("div");
-        descriptionDiv.appendChild(document.createTextNode("Pgen AI - Suggested Product Description:"));
-        descriptionDiv.appendChild(document.createElement('br'));
-        const productDescription = document.createElement("textarea");
-        productDescription.classList.add("tag-input");
-        productDescription.classList.add('pgen-description');
-        productDescription.style.marginTop = "10px";
-        productDescription.style.marginBottom = "10px";
-        productDescription.style.width = "100%";
-        productDescription.style.minHeight = '200px';
-        productDescription.style.border = "none";
-        productDescription.style.outline = "none";
-        descriptionDiv.appendChild(productDescription);
-        popup.appendChild(descriptionDiv);
-        this.productDescription = productDescription;
-
-
-
-
-
-        const keywordDiv = document.createElement("div");
-        keywordDiv.style.marginTop = "30px";
-        keywordDiv.appendChild(document.createTextNode("Pgen AI - Product Keyword Options:"));
-        keywordDiv.appendChild(document.createElement('br'));
-        const productKeywordOptions = document.createElement("input");
-        productKeywordOptions.classList.add("tag-input");
-        productKeywordOptions.classList.add('pgen-keywords');
-        productKeywordOptions.style.marginTop = "25px";
-        productKeywordOptions.style.marginBottom = "10px";
-        productKeywordOptions.style.width = "100%";
-        productKeywordOptions.style.border = "none";
-        productKeywordOptions.style.outline = "none";
-        keywordDiv.appendChild(productKeywordOptions);
-        popup.appendChild(keywordDiv);
-        this.productKeyWords = productKeywordOptions;
-        this.createTagInput(productKeywordOptions, keywordDiv);
-
-        const brandDiv = document.createElement("div");
-        brandDiv.appendChild(document.createTextNode("Pgen AI - Product Brand Options:"));
-        brandDiv.appendChild(document.createElement('br'));
-        const productBrandOptions = document.createElement("input");
-        productBrandOptions.classList.add("tag-input");
-        productBrandOptions.classList.add('pgen-brand');
-        productBrandOptions.style.marginTop = "10px";
-        productBrandOptions.style.marginBottom = "10px";
-        productBrandOptions.style.width = "100%";
-        productBrandOptions.style.border = "none";
-        productBrandOptions.style.outline = "none";
-        brandDiv.appendChild(productBrandOptions);
-        popup.appendChild(brandDiv);
-        this.productBrand = productBrandOptions;
-        this.createTagInput(productBrandOptions, brandDiv);
-
-
-
-
+        ]
+        inputs.forEach((input) => {
+            let container = document.createElement("div");
+            container.appendChild(document.createTextNode(`${input.textNode}`));
+            container.appendChild(document.createElement('br'));
+            container.classList.add(`${input.containerClass}`);
+            container.style.display = 'none';
+            let inputEl = null;
+            if (input.inputType !== "textarea") {
+                 inputEl = document.createElement("input");
+            } else {
+                 inputEl = document.createElement("textarea");
+            }
+            inputEl.className = input.inputClass;
+            inputEl.style.marginTop = "10px";
+            inputEl.style.marginBottom = "10px";
+            inputEl.style.minHeight = input.minHeight ? input.minHeight : '';
+            inputEl.style.width = "100%";
+            inputEl.style.border = "none";
+            inputEl.style.outline = "none";
+            container.appendChild(inputEl);
+            popup.appendChild(container);
+            if (!input.noTags) {
+                this.createTagInput(inputEl, container);
+            }
+        });
     }
     createTagInput(inputField, container) {
         inputField.addEventListener("keydown", (event) => {
@@ -334,7 +408,6 @@ class Pgenai {
 
                     tagElement.appendChild(removeButton);
                     container.insertBefore(tagElement, inputField);
-
                     // Clear the input field
                     inputField.value = "";
                 }
@@ -348,8 +421,10 @@ class Pgenai {
         }
     }
 }
-// injection system for scripts
+
+// injection system for dependency scripts (cdn)
 document.onreadystatechange = () => {
+    const popup = document.querySelector('.popup-view');
     const scriptsLink = [
         'https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.min.js',
         'https://code.jquery.com/jquery-3.7.1.slim.min.js'
@@ -372,9 +447,22 @@ document.onreadystatechange = () => {
 
     if (document.readyState === "complete") {
         const popupSpawnLocation = '#wp-content-editor-container';
-        const pgenai = new Pgenai(popupSpawnLocation);
+        pgenai = new Pgenai(popupSpawnLocation);
     }
+
+    document.addEventListener('mouseup', (e) => {
+        if (document.readyState === "complete") {
+            if (pgenai.isDragging) {
+                pgenai.isDragging = false;
+                const popup = document.querySelector('.popup-view');
+                // Calculate new position
+                const x = e.clientX - pgenai.offsetX;
+                const y = e.clientY - pgenai.offsetY;
+                // Apply the new position to the element
+                popup.style.left = `${x}px`;
+                popup.style.top = `${y}px`;
+            }
+        }
+    });
 }
-
-
 
