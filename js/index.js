@@ -71,27 +71,58 @@ class Pgenai {
          return fileContainer;
     }
 
+    cloneAndConvertSets(obj) {
+        const result = Array.isArray(obj) ? [] : {};
+        for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                if (obj[key] instanceof Set) {
+                    // Convert the Set to an Array and assign it to the new object
+                    result[key] = Array.from(obj[key]);
+                } else if (typeof obj[key] === 'object') {
+                    // Recursively call the function for nested objects
+                    result[key] = this.cloneAndConvertSets(obj[key]);
+                } else {
+                    // Copy other non-object, non-Set values directly
+                    result[key] = obj[key];
+                }
+            }
+        }
+        return result;
+    }
+
 
     onSubmitClicked(improveResults = false) {
+        const parsedWhiteList = this.cloneAndConvertSets(this.whiteListPayload);
+        const parsedBlackList = this.cloneAndConvertSets(this.blackListPayload);
+        console.log(parsedWhiteList);
+        console.log(parsedBlackList);
         const uploadLabel = document.querySelector('.pgen-upload-label');
+        let url = 'http://127.0.0.2:81';
         if (improveResults) {
-            // case 16
+            this.formEl.delete('whitelist');
+            this.formEl.delete('blacklist');
+            this.formEl.append('whitelist',JSON.stringify(parsedWhiteList));
+            this.formEl.append('blacklist',JSON.stringify(parsedBlackList));
         }
         uploadLabel.innerHTML = "Loading...";
-        fetch('http://127.0.0.2:81/upload', {
+        fetch(`${url}/upload`, {
             method: 'POST',
             body: this.formEl,
         })
             .then(response => response.json())
             .then(data => {
+                console.log(data);
                 uploadLabel.innerHTML = "Select Product Image";
                 document.querySelector('.improve').style.display = 'unset';
-                this.handleFetchedData(data)
+                this.handleFetchedData(data,improveResults)
             })
             .catch(error => {
                 console.error('Error:', error);
             });
     }
+
+
+
 
     handleFetchedData(payload) {
 
@@ -112,6 +143,7 @@ class Pgenai {
 
                 },
                 {
+                    allowOverWrite: true,
                     container: '.pgen-description-container',
                     genAt: 'pgen-description',
                     genValue: payload.suggestedText?.textVersion ?? ''
@@ -168,7 +200,12 @@ class Pgenai {
                         && !whiteList.has(data.toLowerCase())
                     ) {
                         //  a item which requested to be whole
-                        $(`.${obj.genAt}`)[0].value += data;
+                        if (!obj.allowOverWrite) {
+                            $(`.${obj.genAt}`)[0].value += data;
+                        }
+                        else {
+                            $(`.${obj.genAt}`)[0].value = data;
+                        }
                         let inputField = document.querySelector(`.${obj.genAt}`);
                         // console.log(data);
                         inputField.dispatchEvent(event);
