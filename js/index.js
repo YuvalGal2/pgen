@@ -18,7 +18,8 @@ class Pgenai {
     offsetX = false;
     offsetY = false;
     isDragging = false;
-    improveDataPayload = {};
+    whiteListPayload = {};
+    blackListPayload = {};
     constructor(popupSpawnLocation) {
         this.popupSpawnLocation = popupSpawnLocation;
         this.injectView();
@@ -74,7 +75,7 @@ class Pgenai {
     onSubmitClicked(improveResults = false) {
         const uploadLabel = document.querySelector('.pgen-upload-label');
         if (improveResults) {
-            console.log(this.improveDataPayload);
+            // case 16
         }
         uploadLabel.innerHTML = "Loading...";
         fetch('http://127.0.0.2:81/upload', {
@@ -93,34 +94,36 @@ class Pgenai {
     }
 
     handleFetchedData(payload) {
+
+        /// called after the data is fetched.
         if (payload) {
             const triggerEventMap = [
                 {
                     container: '.pgen-name-container',
-                    genAt: '.pgen-name',
+                    genAt: 'pgen-name',
                     genValue: payload.msgParams[2] ?? '',
                     splitBy: ' ',
                 },
                 {
                     container: '.pgen-keywords-container',
-                    genAt: '.pgen-keywords',
+                    genAt: 'pgen-keywords',
                     genValue: payload.msgParams[1] ?? '',
                     splitBy: ' ',
 
                 },
                 {
                     container: '.pgen-description-container',
-                    genAt: '.pgen-description',
+                    genAt: 'pgen-description',
                     genValue: payload.suggestedText?.textVersion ?? ''
                 },
                 {
                     container: '.pgen-brand-container',
-                    genAt: '.pgen-brand',
+                    genAt: 'pgen-brand',
                     genValue: payload.msgParams[0] ?? '',
                     splitBy: ' '
                 },
             ]
-            // Create a new "keydown" event
+            // Create a new "keydown" event -- showing all tags
             const event = new KeyboardEvent("keydown", {
                 key: "Enter", // Simulate the "Enter" key
                 keyCode: 13,   // Key code for the "Enter" key
@@ -130,6 +133,16 @@ class Pgenai {
 
 
             triggerEventMap.forEach((obj) => {
+                // make sure the sets exists per each input
+                if (! this.whiteListPayload[`${obj.genAt}-whitelist`]) {
+                    this.whiteListPayload[`${obj.genAt}-whitelist`] = new Set();
+                }
+                if (! this.blackListPayload[`${obj.genAt}-blacklist`]) {
+                    this.blackListPayload[`${obj.genAt}-blacklist`] = new Set();
+                }
+                const whiteList = this.whiteListPayload[`${obj.genAt}-whitelist`];
+                const blackList = this.blackListPayload[`${obj.genAt}-blacklist`];
+
                 const container = document.querySelector(obj.container);
                 container.style.display = 'block';
                 let data = obj.genValue;
@@ -137,20 +150,29 @@ class Pgenai {
                     data = obj.genValue.split(obj.splitBy);
                     // if more then one item and not a item which requested to be whole
                     data.forEach((word) => {
-                        word = `${word}`;
-                        $(obj.genAt)[0].value += word;
-                        let inputField = document.querySelector(obj.genAt);
-                        inputField.dispatchEvent(event);
+                        // console.log(word);
+                        // TODO: if a user want to force remove from  blacklist, give them the option. and add to whitelist.
+                        if (!blackList.has(word.toLowerCase())) {
+                            word = `${word}`;
+                            $(`.${obj.genAt}`)[0].value += word;
+                            let inputField = document.querySelector(`.${obj.genAt}`);
+                            inputField.dispatchEvent(event);
+                        }
                     })
                 } else {
-                    //  a item which requested to be whole
-                    $(obj.genAt)[0].value += data;
-                    let inputField = document.querySelector(obj.genAt);
-                    inputField.dispatchEvent(event);
+                    if (!blackList.has(data.toLowerCase())) {
+                        //  a item which requested to be whole
+                        $(`.${obj.genAt}`)[0].value += data;
+                        let inputField = document.querySelector(`.${obj.genAt}`);
+                        // console.log(data);
+                        inputField.dispatchEvent(event);
+                    }
                 }
 
             })
         }
+        // console.log(this.whiteListPayload);
+        // console.log(this.blackListPayload);
     }
 
 
@@ -244,7 +266,24 @@ class Pgenai {
         });
         return closeButton;
     }
-
+    createListsButton(popup) {
+        // Create reset lists button
+        const resetListsButton = document.createElement("button");
+        resetListsButton.innerText = "Reset Blacklist";
+        resetListsButton.classList.add('btn-info');
+        resetListsButton.classList.add('btn');
+        resetListsButton.style.position = "absolute";
+        resetListsButton.style.bottom = "20px";
+        resetListsButton.style.right = "15px";
+        resetListsButton.addEventListener("click", (event) => {
+        Object.entries(this.blackListPayload).forEach((set) => {
+            set[1].clear();
+        })
+        event.stopPropagation();
+        event.preventDefault();
+        });
+        return resetListsButton;
+    }
     createBaseView(darkMode = true) {
         const popup = document.createElement("div");
 
@@ -294,7 +333,8 @@ class Pgenai {
         // Create popup close button
         const closeButton = this.createCloseButton(popup);
         popup.appendChild(closeButton);
-
+        const resetListsButton = this.createListsButton(popup);
+        popup.appendChild(resetListsButton);
         // Create pushDiv input
         const pushDiv = this.createPushButtons();
         popup.appendChild(pushDiv);
@@ -391,47 +431,64 @@ class Pgenai {
             if (!input.noTags) {
                 this.createTagInput(inputEl, container);
             }
+            inputEl.value = '';
+            inputEl.innerText = '';
+            inputEl.innerHTML = '';
         });
     }
     createTagInput(inputField, container) {
+        const ogClass = inputField.className.split(' ')[1];
+        if (! this.whiteListPayload[`${ogClass}-whitelist`]) {
+            this.whiteListPayload[`${ogClass}-whitelist`] = new Set();
+        }
+        if (! this.blackListPayload[`${ogClass}-blacklist`]) {
+            this.blackListPayload[`${ogClass}-blacklist`] = new Set();
+        }
+        const whiteList = this.whiteListPayload[`${ogClass}-whitelist`];
+        const blackList = this.blackListPayload[`${ogClass}-blacklist`];
+        // called on every enter keyword, and on first view init.
         inputField.addEventListener("keydown", (event) => {
             if (event.key === "," || event.key === "Enter") {
                 event.preventDefault();
                 const tagValue = inputField.value.trim();
                 if (tagValue) {
-                    const tagElement = document.createElement("span");
-                    tagElement.classList.add('badge');
-                    const ogClass = inputField.className.split(' ')[1];
-                    tagElement.classList.add(`${ogClass}-badge`);
-                    tagElement.classList.add('bg-primary');
-                    tagElement.innerText = tagValue;
-                    tagElement.style.marginTop = '5px';
-                    tagElement.style.marginLeft = '5px';
-                    this.improveDataPayload[`${ogClass}-improve`] = [];
-                    this.improveDataPayload[`${ogClass}-improve`].push(tagValue);
+                    if (!whiteList.has(tagValue.toLowerCase())) {
+                        whiteList.add(tagValue.toLowerCase());
+                        const tagElement = document.createElement("span");
+                        tagElement.classList.add('badge');
+                        tagElement.classList.add(`${ogClass}-badge`);
+                        tagElement.classList.add('bg-primary');
+                        tagElement.innerText = tagValue;
+                        tagElement.style.marginTop = '5px';
+                        tagElement.style.marginLeft = '5px';
 
-                    // Add a button to remove the tag
-                    const removeButton = document.createElement("span");
-                    removeButton.className = "remove-tag";
-                    removeButton.innerText = "x";
-                    removeButton.style.marginTop = "5px";
-                    removeButton.style.marginBottom = "5px";
-                    removeButton.style.height = "20px";
-                    removeButton.style.marginLeft = "10px";
-                    removeButton.classList.add('btn-sm');
-                    removeButton.addEventListener("click", () => {
-                        const removeIndex = this.improveDataPayload[`${ogClass}-improve`].indexOf(tagValue);
-                        this.improveDataPayload[`${ogClass}-improve`].splice(removeIndex,1);
-                        tagElement.remove();
-                    });
+                        // this.improveDataPayload[`${ogClass}-improve`].add(tagValue.toLowerCase());
+                        // Add a button to remove the tag
+                        const removeButton = document.createElement("span");
+                        removeButton.className = "remove-tag";
+                        removeButton.innerText = "x";
+                        removeButton.style.marginTop = "5px";
+                        removeButton.style.marginBottom = "5px";
+                        removeButton.style.height = "20px";
+                        removeButton.style.marginLeft = "10px";
+                        removeButton.classList.add('btn-sm');
+                        removeButton.addEventListener("click", () => {
+                            // remove from whitelist
+                            whiteList.delete(tagValue.toLowerCase());
+                            // add to blacklist.
+                            blackList.add(tagValue.toLowerCase());
+                            tagElement.remove();
+                        });
 
-                    tagElement.appendChild(removeButton);
-                    container.insertBefore(tagElement, inputField);
-                    // Clear the input field
-                    inputField.value = "";
+                        tagElement.appendChild(removeButton);
+                        container.insertBefore(tagElement, inputField);
+                        // Clear the input field
+                        inputField.value = "";
+                    }
                 }
             }
         });
+
     }
     spawnPopUp(popup) {
         const popupSpawnLocation = document.querySelector(this.popupSpawnLocation);
