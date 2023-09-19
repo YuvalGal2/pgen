@@ -152,7 +152,10 @@ class Pgenai {
                     data.forEach((word) => {
                         // console.log(word);
                         // TODO: if a user want to force remove from  blacklist, give them the option. and add to whitelist.
-                        if (!blackList.has(word.toLowerCase())) {
+                        if (
+                            !blackList.has(word.toLowerCase())
+                            && !whiteList.has(word.toLowerCase())
+                            ) {
                             word = `${word}`;
                             $(`.${obj.genAt}`)[0].value += word;
                             let inputField = document.querySelector(`.${obj.genAt}`);
@@ -160,7 +163,10 @@ class Pgenai {
                         }
                     })
                 } else {
-                    if (!blackList.has(data.toLowerCase())) {
+                    if (
+                        !blackList.has(data.toLowerCase())
+                        && !whiteList.has(data.toLowerCase())
+                    ) {
                         //  a item which requested to be whole
                         $(`.${obj.genAt}`)[0].value += data;
                         let inputField = document.querySelector(`.${obj.genAt}`);
