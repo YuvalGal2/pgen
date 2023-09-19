@@ -94,8 +94,8 @@ class Pgenai {
     onSubmitClicked(improveResults = false) {
         const parsedWhiteList = this.cloneAndConvertSets(this.whiteListPayload);
         const parsedBlackList = this.cloneAndConvertSets(this.blackListPayload);
-        console.log(parsedWhiteList);
-        console.log(parsedBlackList);
+        // console.log(parsedWhiteList);
+        // console.log(parsedBlackList);
         const uploadLabel = document.querySelector('.pgen-upload-label');
         let url = 'http://127.0.0.2:81';
         if (improveResults) {
@@ -111,7 +111,7 @@ class Pgenai {
         })
             .then(response => response.json())
             .then(data => {
-                console.log(data);
+                // console.log(data);
                 uploadLabel.innerHTML = "Select Product Image";
                 document.querySelector('.improve').style.display = 'unset';
                 this.handleFetchedData(data,improveResults)
