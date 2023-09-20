@@ -149,6 +149,12 @@ class Pgenai {
                     genValue: payload.suggestedText?.textVersion ?? ''
                 },
                 {
+                    allowOverWrite: true,
+                    container: '.pgen-seokeywords-container',
+                    genAt: 'pgen-seokeywords',
+                    genValue: payload.suggestedText?.suggestedSEOKeys ?? ''
+                },
+                {
                     container: '.pgen-brand-container',
                     genAt: 'pgen-brand',
                     genValue: payload.msgParams[0] ?? '',
@@ -432,6 +438,14 @@ class Pgenai {
                 inputType: 'textarea',
                 inputPlaceHolder: '',
                 minHeight: '300px',
+                noTags: true
+            },
+            {
+                textNode:'Pgen AI - Suggested Product SEO keys:',
+                containerClass: 'pgen-seokeywords-container',
+                inputClass:'pgen-seokeywords',
+                inputType: 'textarea',
+                inputPlaceHolder: '',
                 noTags: true
             },
             {
